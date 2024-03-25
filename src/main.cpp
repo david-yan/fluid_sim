@@ -2,11 +2,15 @@
 
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <cmath>
 #include <math.h>
+#include <vector>
+#include <numeric>
 
 sf::Vector2f gravity(0.f, 9.8);
 sf::Vector2f damping(0.9, 0.9);
 
+float minSmoothingRadius(1.0);
 float smoothingRadius(50.0);
 float volume = M_PI * std::pow(smoothingRadius, 8) / 4;
 
@@ -27,7 +31,7 @@ void spawnParticles(const int rows, const int cols, const float radius, const sf
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             sf::CircleShape particle(radius);
-            particle.setFillColor(sf::Color(0, 0, 255));
+            particle.setFillColor(sf::Color(255, 255, 255));
 
             sf::Vector2f displacement((i - rowCenterIdx) * (2 * radius + spacing), (j - colCenterIdx) * (2 * radius + spacing));
             particle.setPosition(center + displacement);
@@ -44,6 +48,7 @@ void spawnRandomParticles(const int numParticles, const float radius, const sf::
         float y = static_cast <float> (std::rand()) / static_cast <float> (RAND_MAX) * static_cast <float> (bounds.y - (2 * radius));
 
         sf::CircleShape particle(radius);
+        particle.setFillColor(sf::Color(255, 255, 255));
         particle.setPosition(sf::Vector2f(x, y));
         particles.push_back(particle);
         particleVelocities.push_back(sf::Vector2f(0.f, 0.f));
@@ -87,6 +92,9 @@ float calculateDensity(const sf::Vector2f &point) {
         const sf::Vector2f diff = particle.getPosition() + centerDisplacement - point;
         const float dst = std::sqrt(std::pow(diff.x, 2) + std::pow(diff.y, 2));
         if (dst < smoothingRadius) {
+            particle.setFillColor(sf::Color(0, 0, 255));
+        }
+        else {
             particle.setFillColor(sf::Color(255, 255, 255));
         }
 
@@ -108,11 +116,16 @@ void visualizeDensity(sf::RenderWindow &window) {
             const sf::Vector2f point(i * scale, j * scale);
             const float density = calculateDensity(point);
             sf::RectangleShape pixel(sf::Vector2f(scale, scale));
-            pixel.setPosition(sf::Vector2f(i, j));
-            pixel.setFillColor(sf::Color(0, 0, 255, 255 * density));
+            pixel.setPosition(sf::Vector2f(i*scale, j*scale));
+            pixel.setFillColor(sf::Color(0, 0, 255, 255 * std::min(density * 5e2, 1.0)));
             window.draw(pixel);
         }
     }
+}
+
+template<typename Iter_T>
+float vectorNorm(Iter_T first, Iter_T last) {
+  return std::sqrt(std::inner_product(first, last, first, 0.0L));
 }
 
 int main()
@@ -128,10 +141,10 @@ int main()
     unsigned int width = bounds.x;
     unsigned int height = bounds.y;
 
-    float radius = 5.0;
+    float radius = 2.0;
 
-    spawnParticles(50, 50, radius, sf::Vector2f(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f), 10);
-    // spawnRandomParticles(500, radius, bounds);
+    // spawnParticles(50, 50, radius, sf::Vector2f(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f), 2);
+    spawnRandomParticles(1000, radius, bounds);
 
     sf::Clock clock;
     sf::Vector2f center(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f);
@@ -144,6 +157,10 @@ int main()
     float density = calculateDensity(center);
     std::cout << "density: " << density << std::endl;
 
+    bool leftMousePressed = false;
+    bool rightMousePressed = false;
+    float prevMouse[2];
+
     while (window.isOpen())
     {
         for (auto event = sf::Event{}; window.pollEvent(event);)
@@ -151,11 +168,70 @@ int main()
             if (event.type == sf::Event::Closed) {
                 window.close();
             }
+            if (event.type == sf::Event::MouseButtonPressed) {
+                if (event.mouseButton.button == sf::Mouse::Left)
+                {
+                    leftMousePressed = true;
+                    std::cout << "left mouse pressed" << std::endl;
+
+                    center = sf::Vector2f(event.mouseButton.x, event.mouseButton.y);
+                    densityCircle.setPosition(center - sf::Vector2f(smoothingRadius, smoothingRadius));
+                    float density = calculateDensity(center);
+                    std::cout << "density: " << density << std::endl;
+                }
+                if (event.mouseButton.button == sf::Mouse::Right)
+                {
+                    rightMousePressed = true;
+                    prevMouse[0] = event.mouseButton.x;
+                    prevMouse[1] = event.mouseButton.y;
+                }
+            }
             if (event.type == sf::Event::MouseButtonReleased) {
                 if (event.mouseButton.button == sf::Mouse::Left)
                 {
+                    leftMousePressed = false;
+                    std::cout << "left mouse released" << std::endl;
+
                     center = sf::Vector2f(event.mouseButton.x, event.mouseButton.y);
                     densityCircle.setPosition(center - sf::Vector2f(smoothingRadius, smoothingRadius));
+                    float density = calculateDensity(center);
+                    std::cout << "density: " << density << std::endl;
+                }
+                if (event.mouseButton.button == sf::Mouse::Right)
+                {
+                    rightMousePressed = false;
+                }
+            }
+
+            if (event.type == sf::Event::MouseMoved)
+            {
+                if (leftMousePressed)
+                {
+                    center = sf::Vector2f(event.mouseMove.x, event.mouseMove.y);
+                    densityCircle.setPosition(center - sf::Vector2f(smoothingRadius, smoothingRadius));
+                }
+
+                if (rightMousePressed)
+                {
+                    float centerDiff[2] = {prevMouse[0] - center.x, prevMouse[1] - center.y};
+                    float centerNorm = vectorNorm(centerDiff, centerDiff+2);
+                    centerDiff[0] /= centerNorm;
+                    centerDiff[1] /= centerNorm;
+
+                    float mouseDiff[2] = {event.mouseMove.x - prevMouse[0], event.mouseMove.y - prevMouse[1]};
+                    float mouseToCenterProj = std::inner_product(mouseDiff, mouseDiff+2, centerDiff, 0.0);
+                    smoothingRadius = std::max(smoothingRadius + mouseToCenterProj, minSmoothingRadius);
+                    volume = M_PI * std::pow(smoothingRadius, 8) / 4;
+                    // std::cout << smoothingRadius << std::endl;
+                    densityCircle.setRadius(smoothingRadius);
+                    densityCircle.setPosition(center - sf::Vector2f(smoothingRadius, smoothingRadius));
+                }
+
+                prevMouse[0] = event.mouseMove.x;
+                prevMouse[1] = event.mouseMove.y;
+
+                if (leftMousePressed || rightMousePressed)
+                {
                     float density = calculateDensity(center);
                     std::cout << "density: " << density << std::endl;
                 }
@@ -164,7 +240,7 @@ int main()
 
         window.clear();
 
-        // visualizeDensity(window);
+        visualizeDensity(window);
 
         
         window.draw(densityCircle);
