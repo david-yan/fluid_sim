@@ -13,7 +13,7 @@ Vector2f Vector2f::normalized()
     return Vector2f(x / mag, y / mag);
 }
 
-float Vector2f::inner_product(Vector2f other)
+float Vector2f::inner_product(Vector2f &other)
 {
     return x * other.x + y * other.y;
 }

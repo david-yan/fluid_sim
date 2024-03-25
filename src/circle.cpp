@@ -9,12 +9,12 @@ Vector2f Circle::getCenter()
     return getPosition() + centerDisplacement;
 }
 
-void Circle::setCenter(Vector2f center)
+void Circle::setCenter(Vector2f &center)
 {
     setPosition(center - centerDisplacement);
 }
 
-float Circle::distanceFromCenter(Vector2f point)
+float Circle::distanceFromCenter(Vector2f &point)
 {
     Vector2f diff = getCenter() - point;
     return diff.magnitude();

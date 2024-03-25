@@ -134,8 +134,7 @@ int main()
 
     sf::Clock clock;
     Vector2f center(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f);
-    Circle densityCircle(smoothingRadius);
-    densityCircle.setPosition(center - Vector2f(smoothingRadius, smoothingRadius));
+    Circle densityCircle(center, smoothingRadius);
     densityCircle.setFillColor(sf::Color(0, 0, 0, 0));
     densityCircle.setOutlineColor(sf::Color(0, 255, 255));
     densityCircle.setOutlineThickness(1.0);
@@ -207,6 +206,10 @@ int main()
 
                     float mouseToCenterProj = mouseDiff.inner_product(centerDiff);
                     smoothingRadius = std::max(smoothingRadius + mouseToCenterProj, minSmoothingRadius);
+                    // NaN check
+                    if (smoothingRadius != smoothingRadius) {
+                        smoothingRadius = minSmoothingRadius;
+                    }
                     std::cout << smoothingRadius << std::endl;
                     densityCircle.setRadius(smoothingRadius);
                     densityCircle.setPosition(center - Vector2f(smoothingRadius, smoothingRadius));
