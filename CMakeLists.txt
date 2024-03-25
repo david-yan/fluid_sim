@@ -12,18 +12,20 @@ FetchContent_MakeAvailable(SFML)
 
 include_directories(header)
 
-add_library(Vector2f src/Vector2f.cpp)
-add_executable(FluidSim src/main.cpp)
-target_link_libraries(Vector2f PRIVATE sfml-graphics)
-target_link_libraries(FluidSim PRIVATE sfml-graphics Vector2f)
-target_compile_features(FluidSim PRIVATE cxx_std_17)
+add_library(vector2f src/vector2f.cpp)
+add_library(circle src/circle.cpp)
+add_executable(fluid_sim src/main.cpp)
+target_link_libraries(vector2f PRIVATE sfml-graphics)
+target_link_libraries(circle PRIVATE sfml-graphics)
+target_link_libraries(fluid_sim PRIVATE sfml-graphics vector2f circle)
+target_compile_features(fluid_sim PRIVATE cxx_std_17)
 
 if(WIN32)
     add_custom_command(
-        TARGET FluidSim
+        TARGET fluid_sim
         COMMENT "Copy OpenAL DLL"
-        PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SFML_SOURCE_DIR}/extlibs/bin/$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,x64,x86>/openal32.dll $<TARGET_FILE_DIR:FluidSim>
+        PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SFML_SOURCE_DIR}/extlibs/bin/$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,x64,x86>/openal32.dll $<TARGET_FILE_DIR:fluid_sim>
         VERBATIM)
 endif()
 
-install(TARGETS FluidSim)
+install(TARGETS fluid_sim)

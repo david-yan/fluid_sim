@@ -1,7 +1,6 @@
 #include <math.h>
-#include <numeric>
 
-#include "Vector2f.hpp"
+#include "vector2f.hpp"
 
 float Vector2f::magnitude()
 {
