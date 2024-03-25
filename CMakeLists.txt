@@ -10,8 +10,12 @@ FetchContent_Declare(SFML
     GIT_TAG 2.6.x)
 FetchContent_MakeAvailable(SFML)
 
+include_directories(header)
+
+add_library(Vector2f src/Vector2f.cpp)
 add_executable(FluidSim src/main.cpp)
-target_link_libraries(FluidSim PRIVATE sfml-graphics)
+target_link_libraries(Vector2f PRIVATE sfml-graphics)
+target_link_libraries(FluidSim PRIVATE sfml-graphics Vector2f)
 target_compile_features(FluidSim PRIVATE cxx_std_17)
 
 if(WIN32)

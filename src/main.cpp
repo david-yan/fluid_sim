@@ -7,6 +7,8 @@
 #include <vector>
 #include <numeric>
 
+#include "Vector2f.hpp"
+
 sf::Vector2f gravity(0.f, 9.8);
 sf::Vector2f damping(0.9, 0.9);
 
@@ -159,7 +161,8 @@ int main()
 
     bool leftMousePressed = false;
     bool rightMousePressed = false;
-    float prevMouse[2];
+    // float prevMouse[2];
+    Vector2f prevMouse(0.f, 0.f);
 
     while (window.isOpen())
     {
@@ -182,8 +185,8 @@ int main()
                 if (event.mouseButton.button == sf::Mouse::Right)
                 {
                     rightMousePressed = true;
-                    prevMouse[0] = event.mouseButton.x;
-                    prevMouse[1] = event.mouseButton.y;
+                    prevMouse.x = event.mouseButton.x;
+                    prevMouse.y = event.mouseButton.y;
                 }
             }
             if (event.type == sf::Event::MouseButtonReleased) {
@@ -213,13 +216,12 @@ int main()
 
                 if (rightMousePressed)
                 {
-                    float centerDiff[2] = {prevMouse[0] - center.x, prevMouse[1] - center.y};
-                    float centerNorm = vectorNorm(centerDiff, centerDiff+2);
-                    centerDiff[0] /= centerNorm;
-                    centerDiff[1] /= centerNorm;
+                    Vector2f centerDiff = Vector2f(prevMouse - center).normalized();
 
-                    float mouseDiff[2] = {event.mouseMove.x - prevMouse[0], event.mouseMove.y - prevMouse[1]};
-                    float mouseToCenterProj = std::inner_product(mouseDiff, mouseDiff+2, centerDiff, 0.0);
+                    Vector2f mousePos(event.mouseMove.x, event.mouseMove.y);
+                    Vector2f mouseDiff = mousePos - prevMouse;
+
+                    float mouseToCenterProj = mouseDiff.inner_product(centerDiff);
                     smoothingRadius = std::max(smoothingRadius + mouseToCenterProj, minSmoothingRadius);
                     volume = M_PI * std::pow(smoothingRadius, 8) / 4;
                     // std::cout << smoothingRadius << std::endl;
@@ -227,8 +229,8 @@ int main()
                     densityCircle.setPosition(center - sf::Vector2f(smoothingRadius, smoothingRadius));
                 }
 
-                prevMouse[0] = event.mouseMove.x;
-                prevMouse[1] = event.mouseMove.y;
+                prevMouse.x = event.mouseMove.x;
+                prevMouse.y = event.mouseMove.y;
 
                 if (leftMousePressed || rightMousePressed)
                 {
@@ -240,7 +242,7 @@ int main()
 
         window.clear();
 
-        visualizeDensity(window);
+        // visualizeDensity(window);
 
         
         window.draw(densityCircle);
