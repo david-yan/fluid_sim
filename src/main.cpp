@@ -48,7 +48,7 @@ int main()
     float radius = 2.0;
 
     // particles.spawnParticles(50, 50, radius, Vector2f(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f), 2);
-    particles.spawnRandomParticles(500, radius, bounds);
+    particles.spawnRandomParticles(1000, radius, bounds);
 
     sf::Clock clock;
     Vector2f center(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f);
@@ -57,7 +57,7 @@ int main()
     densityCircle.setOutlineColor(sf::Color(0, 255, 255));
     densityCircle.setOutlineThickness(1.0);
 
-    float density = particles.calculateDensity(center, smoothingRadius);
+    float density = particles.calculateDensity(center);
     std::cout << "density: " << density << std::endl;
 
     bool leftMousePressed = false;
@@ -80,7 +80,7 @@ int main()
 
                     center = Vector2f(event.mouseButton.x, event.mouseButton.y);
                     densityCircle.setPosition(center - Vector2f(smoothingRadius, smoothingRadius));
-                    float density = particles.calculateDensity(center, smoothingRadius);
+                    float density = particles.calculateDensity(center);
                     std::cout << "density: " << density << std::endl;
                 }
                 if (event.mouseButton.button == sf::Mouse::Right)
@@ -98,7 +98,7 @@ int main()
 
                     center = Vector2f(event.mouseButton.x, event.mouseButton.y);
                     densityCircle.setPosition(center - Vector2f(smoothingRadius, smoothingRadius));
-                    float density = particles.calculateDensity(center, smoothingRadius);
+                    float density = particles.calculateDensity(center);
                     std::cout << "density: " << density << std::endl;
                 }
                 if (event.mouseButton.button == sf::Mouse::Right)
@@ -138,7 +138,7 @@ int main()
 
                 if (leftMousePressed || rightMousePressed)
                 {
-                    float density = particles.calculateDensity(center, smoothingRadius);
+                    float density = particles.calculateDensity(center);
                     std::cout << "density: " << density << std::endl;
                 }
             }
@@ -153,6 +153,8 @@ int main()
         // sf::Time elapsed = clock.restart();
         // particles.applyGravity(elapsed);
 
+        particles.calculateAllDensities();
+        particles.visualizeQuadrants(window);
         particles.drawParticles(window);
         
         window.display();

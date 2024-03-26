@@ -17,6 +17,8 @@ private:
 
     unsigned int _positionToQuadrant(const Vector2f &pos);
     unsigned int _getParticleQuadrant(const unsigned int idx);
+    std::vector<unsigned int> _getNeighboringQuadrants(const unsigned int quadrant);
+
 public:
     std::vector<Circle> particles;
     std::vector<Vector2f> particleVelocities;
@@ -40,8 +42,8 @@ public:
     void updateQuadrants();
     void visualizeQuadrants(sf::RenderWindow &window);
 
-    float calculateDensity(const Vector2f &point, const float smoothingRadius);
-    void calculateAllDensities(const float smoothingRadius);
+    float calculateDensity(const Vector2f &point);
+    void calculateAllDensities();
 
     void drawParticles(sf::RenderWindow &window);
     void updateGravity(sf::Time &elapsed);

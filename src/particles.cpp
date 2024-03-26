@@ -26,6 +26,7 @@ void ParticleStore::spawnParticles(const int rows, const int cols, const float r
             particleVelocities.push_back(Vector2f(0.f, 0.f));
         }
     }
+    updateQuadrants();
 }
 
 void ParticleStore::spawnRandomParticles(const int numParticles, const float radius, const sf::Vector2u bounds) {
@@ -39,6 +40,7 @@ void ParticleStore::spawnRandomParticles(const int numParticles, const float rad
         particles.push_back(particle);
         particleVelocities.push_back(Vector2f(0.f, 0.f));
     }
+    updateQuadrants();
 }
 
 void ParticleStore::applyGravity(Circle &particle, Vector2f &particleVelocity, sf::Time &elapsed) {
@@ -63,6 +65,7 @@ void ParticleStore::applyGravity(Circle &particle, Vector2f &particleVelocity, s
 
 void ParticleStore::setSmoothingRadius(const float newSmoothingRadius) {
     smoothingRadius = newSmoothingRadius;
+    updateQuadrants();
 }
 
 unsigned int ParticleStore::_positionToQuadrant(const Vector2f &pos) {
@@ -74,44 +77,81 @@ unsigned int ParticleStore::_getParticleQuadrant(const unsigned int idx){
     return _positionToQuadrant(center);
 }
 
+std::vector<unsigned int> ParticleStore::_getNeighboringQuadrants(const unsigned int quadrant) {
+    unsigned int xLimit = (width / smoothingRadius) + 1;
+    unsigned int yLimit = (height / smoothingRadius) + 1;
+
+    unsigned int x = quadrant % (static_cast<int>(smoothingRadius) + 1);
+    unsigned int y = quadrant / (static_cast<int>(smoothingRadius) + 1);
+
+    std::vector<unsigned int> neighbors;
+    int deltas[] = {-1, 0, 1};
+    for (int dx : deltas) {
+        for (int dy : deltas) {
+            unsigned int newX = x + dx;
+            unsigned int newY = y + dy;
+
+            if (newX < 0 || newY < 0 || newX >= xLimit || newY >= yLimit) {
+                continue;
+            }
+            neighbors.push_back(newY * (smoothingRadius + 1) + newX);
+        }
+    }
+    return neighbors;
+}
+
 void ParticleStore::updateQuadrants() {
     quadrantToParticleIdxs.clear();
     for (int i = 0; i < particles.size(); i++) {
         unsigned int quadrant = _getParticleQuadrant(i);
-        if (quadrantToParticleIdxs.find(quadrant) != quadrantToParticleIdxs.end()) {
-            quadrantToParticleIdxs[quadrant] = std::vector<unsigned int>(i);
-        }
-        else {
-            quadrantToParticleIdxs[quadrant].push_back(i);
-        }
+        quadrantToParticleIdxs[quadrant].push_back(i);
     }
 }
 
 void ParticleStore::visualizeQuadrants(sf::RenderWindow &window) {
-    
+    for (int i = 0; i < width / smoothingRadius; i++) {
+        sf::Vertex line[] = {
+            sf::Vertex(sf::Vector2f((i+1)*smoothingRadius, 0.f), sf::Color(57, 57, 57)),
+            sf::Vertex(sf::Vector2f((i+1)*smoothingRadius, height), sf::Color(57, 57, 57))
+        };
+        window.draw(line, 2, sf::LineStrip);
+    }
+    for (int j = 0; j < height / smoothingRadius; j++) {
+        sf::Vertex line[] = {
+            sf::Vertex(sf::Vector2f(0.f, (j+1)*smoothingRadius), sf::Color(57, 57, 57)),
+            sf::Vertex(sf::Vector2f(width, (j+1)*smoothingRadius), sf::Color(57, 57, 57))
+        };
+        window.draw(line, 2, sf::LineStrip);
+    }
 }
 
-float ParticleStore::calculateDensity(const Vector2f &point, const float smoothingRadius) {
+float ParticleStore::calculateDensity(const Vector2f &point) {
     const float mass = 1.f;
     float density = 0;
 
-    for (int i = 0; i < particles.size(); i++) {
-        Circle &particle = particles[i];
-        const float dst = particle.distanceFromCenter(point);
-        if (dst < smoothingRadius) {
-            particle.setFillColor(sf::Color(0, 0, 255));
-        }
-        else {
-            particle.setFillColor(sf::Color(255, 255, 255));
-        }
+    unsigned int quadrant = _positionToQuadrant(point);
+    std::vector<unsigned int> neighboringQuadrants = _getNeighboringQuadrants(quadrant);
 
-        const float influence = smoothingKernel(smoothingRadius, dst);
-        density += mass * influence;
+    for (int quadrant : neighboringQuadrants) {
+        std::vector<unsigned int> &particleIdxs = quadrantToParticleIdxs[quadrant];
+        for (int i : particleIdxs) {
+            Circle &particle = particles[i];
+            const float dst = particle.distanceFromCenter(point);
+            // if (dst < smoothingRadius) {
+            //     particle.setFillColor(sf::Color(0, 0, 255));
+            // }
+            // else {
+            //     particle.setFillColor(sf::Color(255, 0, 0));
+            // }
+
+            const float influence = smoothingKernel(smoothingRadius, dst);
+            density += mass * influence;
+        }
     }
     return density;
 }
 
-void ParticleStore::calculateAllDensities(const float smoothingRadius) {
+void ParticleStore::calculateAllDensities() {
     int i, j;
     float density;
     
@@ -122,7 +162,7 @@ void ParticleStore::calculateAllDensities(const float smoothingRadius) {
     for (i = 0; i < allDensities.size(); i++) {
         for (j = 0; j < allDensities[0].size(); j++) {
             const Vector2f point(i * DENSITY_SCALE, j * DENSITY_SCALE);
-            float density = calculateDensity(point, smoothingRadius);
+            float density = calculateDensity(point);
             allDensities[i][j] = density;
         }
     }
