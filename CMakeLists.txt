@@ -10,19 +10,25 @@ FetchContent_Declare(SFML
     GIT_TAG 2.6.x)
 FetchContent_MakeAvailable(SFML)
 find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(fluid_sim PUBLIC OpenMP::OpenMP_CXX)
-endif()
 
 include_directories(header)
 
 add_library(vector2f src/vector2f.cpp)
 add_library(circle src/circle.cpp)
+add_library(timer src/timer.cpp)
+add_library(particles src/particles.cpp)
 add_executable(fluid_sim src/main.cpp)
+
 target_link_libraries(vector2f PRIVATE sfml-graphics)
 target_link_libraries(circle PRIVATE sfml-graphics)
-target_link_libraries(fluid_sim PRIVATE sfml-graphics vector2f circle)
+target_link_libraries(particles PRIVATE sfml-graphics circle timer)
+
+target_link_libraries(fluid_sim PRIVATE sfml-graphics vector2f circle timer particles)
 target_compile_features(fluid_sim PRIVATE cxx_std_17)
+
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(fluid_sim PUBLIC OpenMP::OpenMP_CXX)
+endif()
 
 if(WIN32)
     add_custom_command(
