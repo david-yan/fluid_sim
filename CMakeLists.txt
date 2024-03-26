@@ -9,6 +9,10 @@ FetchContent_Declare(SFML
     GIT_REPOSITORY https://github.com/SFML/SFML.git
     GIT_TAG 2.6.x)
 FetchContent_MakeAvailable(SFML)
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(fluid_sim PUBLIC OpenMP::OpenMP_CXX)
+endif()
 
 include_directories(header)
 
