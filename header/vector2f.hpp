@@ -10,5 +10,5 @@ public:
 
     float magnitude();
     Vector2f normalized();
-    float inner_product(Vector2f &other);
+    float inner_product(const Vector2f &other);
 };
