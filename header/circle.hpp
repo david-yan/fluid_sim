@@ -20,7 +20,7 @@ public:
     };
 
     Vector2f getCenter();
-    void setCenter(Vector2f &center);
+    void setCenter(const Vector2f &center);
 
     float distanceFromCenter(const Vector2f &point);
 };

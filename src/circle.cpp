@@ -9,7 +9,7 @@ Vector2f Circle::getCenter()
     return Vector2f(getPosition()) + centerDisplacement;
 }
 
-void Circle::setCenter(Vector2f &center)
+void Circle::setCenter(const Vector2f &center)
 {
     setPosition(center - centerDisplacement);
 }
