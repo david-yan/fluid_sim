@@ -8,14 +8,17 @@
 #include "vector2f.hpp"
 #include "kernels.hpp"
 
-Vector2f gravity(0.f, 9.8);
-Vector2f damping(0.9, 0.9);
+const Vector2f GRAVITY(0.f, 9.8);
+const Vector2f DAMPING(0.9, 0.9);
 
 float minSmoothingRadius(1.0);
 float smoothingRadius(50.0);
 
 std::vector<Circle> particles;
 std::vector<Vector2f> particleVelocities;
+
+std::vector<std::vector<float>> all_densities;
+const float DENSITY_SCALE = 8;
 
 void spawnParticles(const int rows, const int cols, const float radius, const Vector2f &center, const float spacing = 0.f) {
     int nParticles = rows * cols;
@@ -63,16 +66,16 @@ void applyGravity(Circle &particle, Vector2f &particleVelocity, sf::Time &elapse
     // Check particle bounds
     Vector2f updatedPosition = particle.getPosition();
     if (updatedPosition.x < 0 || updatedPosition.x + (2 * radius) >= width) {
-        particleVelocity.x *= -1 * damping.x;
+        particleVelocity.x *= -1 * DAMPING.x;
     }
     if (updatedPosition.y < 0 || updatedPosition.y + (2 * radius) >= height) {
-        particleVelocity.y *= -1 * damping.y;
+        particleVelocity.y *= -1 * DAMPING.y;
     }
     float boundedX = std::min(std::max(updatedPosition.x, 0.f), static_cast<float>(width - (2 * radius)));
     float boundedY = std::min(std::max(updatedPosition.y, 0.f), static_cast<float>(height - (2 * radius)));
     particle.setPosition(boundedX, boundedY);
 
-    particleVelocity += gravity * elapsed.asSeconds();
+    particleVelocity += GRAVITY * elapsed.asSeconds();
 }
 
 float calculateDensity(const Vector2f &point) {
@@ -95,19 +98,28 @@ float calculateDensity(const Vector2f &point) {
     return density;
 }
 
+void calculateAllDensities() {
+    #pragma omp parallel for
+    for (int i = 0; i < all_densities.size(); i++) {
+        for (int j = 0; j < all_densities[0].size(); j++) {
+            const Vector2f point(i * DENSITY_SCALE, j * DENSITY_SCALE);
+            const float density = calculateDensity(point);
+            all_densities[i][j] = density;
+        }
+    }
+}
+
 void visualizeDensity(sf::RenderWindow &window) {
     sf::Vector2u bounds = window.getSize();
     unsigned int width = bounds.x;
     unsigned int height = bounds.y;
 
-    const float scale = 8.0;
-
-    for (int i = 0; i < width / scale; i++) {
-        for (int j = 0; j < height / scale; j++) {
-            const Vector2f point(i * scale, j * scale);
+    for (int i = 0; i < width / DENSITY_SCALE; i++) {
+        for (int j = 0; j < height / DENSITY_SCALE; j++) {
+            const Vector2f point(i * DENSITY_SCALE, j * DENSITY_SCALE);
             const float density = calculateDensity(point);
-            sf::RectangleShape pixel(Vector2f(scale, scale));
-            pixel.setPosition(Vector2f(i*scale, j*scale));
+            sf::RectangleShape pixel(Vector2f(DENSITY_SCALE, DENSITY_SCALE));
+            pixel.setPosition(Vector2f(i*DENSITY_SCALE, j*DENSITY_SCALE));
             pixel.setFillColor(sf::Color(0, 0, 255, 255 * std::min(density * 5e2, 1.0)));
             window.draw(pixel);
         }
@@ -126,6 +138,9 @@ int main()
     sf::Vector2u bounds = window.getSize();
     unsigned int width = bounds.x;
     unsigned int height = bounds.y;
+
+    // initialize density vectors
+    all_densities.resize(width / DENSITY_SCALE, std::vector<float>(height / DENSITY_SCALE));
 
     float radius = 2.0;
 
