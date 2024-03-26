@@ -22,5 +22,5 @@ public:
     Vector2f getCenter();
     void setCenter(Vector2f &center);
 
-    float distanceFromCenter(Vector2f &point);
+    float distanceFromCenter(const Vector2f &point);
 };
