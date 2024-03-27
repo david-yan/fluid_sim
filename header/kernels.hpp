@@ -5,12 +5,11 @@
 #include <math.h>
 
 float smoothingKernel(float radius, float dst) {
-    if (dst < radius) {
-        float volume = M_PI * std::pow(radius, 8) / 4;
-        float value = radius * radius - dst * dst;
-        return std::pow(value, 3) / volume;
-    }
-    return 0;
+    if (dst >= radius) return 0;
+
+    float volume = M_PI * std::pow(radius, 8) / 4;
+    float value = radius * radius - dst * dst;
+    return std::pow(value, 3) / volume;
 }
 
 float smoothingKernelDerivative(float radius, float dst) {
@@ -21,19 +20,34 @@ float smoothingKernelDerivative(float radius, float dst) {
     return scale * dst * f * f;
 }
 
-float spikyKernel(float radius, float dst) {
-    if (dst < radius) {
-        float volume = M_PI * std::pow(radius, 5) / 10;
-        float value = radius - dst;
-        return std::pow(value, 3) / volume;
-    }
-    return 0;
+float spikyPow2Kernel(float radius, float dst) {
+    if (dst >= radius) return 0;
+
+    float volume = M_PI * std::pow(radius, 4) / 6;
+    float value = radius - dst;
+    return std::pow(value, 2) / volume;
 }
 
-float spikyKernelDerivative(float radius, float dst) {
+float spikyPow2KernelDerivative(float radius, float dst) {
+    if (dst >= radius) return 0;
+
+    float f = radius - dst;
+    float scale = -12.f / (M_PI * std::pow(radius, 4));
+    return scale * f;
+}
+
+float spikyPow3Kernel(float radius, float dst) {
+    if (dst >= radius) return 0;
+    
+    float volume = M_PI * std::pow(radius, 5) / 10;
+    float value = radius - dst;
+    return std::pow(value, 3) / volume;
+}
+
+float spikyPow3KernelDerivative(float radius, float dst) {
     if (dst >= radius) return 0;
 
     float f = radius - dst;
     float scale = -30.f / (M_PI * std::pow(radius, 5));
-    return scale * dst * f * f;
+    return scale * f * f;
 }

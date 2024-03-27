@@ -32,7 +32,7 @@ int main()
     float radius = 2.0;
 
     // particles.spawnParticles(50, 50, radius, Vector2f(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f), 2);
-    particles.spawnRandomParticles(500, radius, bounds);
+    particles.spawnRandomParticles(1000, radius, bounds);
 
     sf::Clock clock;
     Vector2f center(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f);
@@ -137,11 +137,13 @@ int main()
         particles.applyForces(elapsed);
 
         particles.calculateAllDensities();
+        // particles.calculateAllPressures();
         particles.calculateAllParticleDensities();
         particles.calculateParticleForces();
 
         particles.visualizeDensity(window);
-        // particles.visualizeParticleForces(window);
+        // particles.visualizePressure(window);
+        particles.visualizeParticleForces(window);
 
         // particles.visualizeQuadrants(window);
         particles.drawParticles(window);

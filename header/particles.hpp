@@ -24,8 +24,9 @@ public:
     std::vector<Vector2f> particleVelocities;
     std::vector<float> particleDensities;
     std::vector<Vector2f> particleForces;
-
+    
     std::vector<std::vector<float>> allDensities;
+    std::vector<std::vector<float>> allPressures;
 
     ParticleStore();
     ParticleStore(sf::Vector2u &bounds, const float smoothingRadius)
@@ -33,6 +34,7 @@ public:
         width = bounds.x;
         height = bounds.y;
         allDensities.resize(width / DENSITY_SCALE, std::vector<float>(height / DENSITY_SCALE));
+        allPressures.resize(width / DENSITY_SCALE, std::vector<float>(height / DENSITY_SCALE));
     };
 
     void spawnParticles(const int rows, const int cols, const float radius, const Vector2f &center, const float spacing = 0.f);
@@ -46,11 +48,15 @@ public:
 
     float calculateDensity(const Vector2f &point);
     float calculatePressure(const float density);
+
     void calculateAllDensities();
     void calculateAllParticleDensities();
     void visualizeDensity(sf::RenderWindow &window);
 
-    Vector2f calculateDensityGradient(const Vector2f &point);
+    void calculateAllPressures();
+    void visualizePressure(sf::RenderWindow &window);
+
+    Vector2f calculateParticleForce(int idx);
     void calculateParticleForces();
     void visualizeParticleForces(sf::RenderWindow &window);
 

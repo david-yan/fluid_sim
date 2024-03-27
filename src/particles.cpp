@@ -4,6 +4,7 @@
 #include "circle.hpp"
 #include "kernels.hpp"
 #include "timer.hpp"
+#include "vector2f.hpp"
 
 void ParticleStore::spawnParticles(const int rows, const int cols, const float radius, const Vector2f &center, const float spacing) {
     int nParticles = rows * cols;
@@ -32,8 +33,8 @@ void ParticleStore::spawnParticles(const int rows, const int cols, const float r
 void ParticleStore::spawnRandomParticles(const int numParticles, const float radius, const sf::Vector2u bounds) {
     std::srand(std::time(nullptr));
     for (int i = 0; i < numParticles; i++) {
-        float x = static_cast <float> (std::rand()) / static_cast <float> (RAND_MAX) * static_cast <float> (bounds.x - (2 * radius));
-        float y = static_cast <float> (std::rand()) / static_cast <float> (RAND_MAX) * static_cast <float> (bounds.y - (2 * radius));
+        float x = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX) * static_cast<float>(bounds.x - (2 * radius));
+        float y = static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX) * static_cast<float>(bounds.y - (2 * radius));
 
         Circle particle(Vector2f(x, y), radius);
         particle.setFillColor(sf::Color(255, 255, 255));
@@ -46,9 +47,18 @@ void ParticleStore::spawnRandomParticles(const int numParticles, const float rad
 void ParticleStore::applyForces(sf::Time &elapsed) {
     for (int i = 0; i < particleForces.size(); i++) {
         Circle &particle = particles[i];
-        sf::Vector2f &particleVelocity = particleVelocities[i];
+        Vector2f &particleVelocity = particleVelocities[i];
 
         float radius = particle.getRadius();
+
+        // Update velocity
+        // particleVelocity += GRAVITY * elapsed.asSeconds();
+        Vector2f acc = particleForces[i] / particleDensities[i];
+        particleVelocity += acc * elapsed.asSeconds();
+
+        if (particleVelocity.magnitude() > MAX_VELOCITY) {
+            particleVelocity *= MAX_VELOCITY / particleVelocity.magnitude();
+        }
 
         particle.move(particleVelocity);
 
@@ -63,11 +73,6 @@ void ParticleStore::applyForces(sf::Time &elapsed) {
         float boundedX = std::min(std::max(updatedPosition.x, 0.f), static_cast<float>(width - (2 * radius)));
         float boundedY = std::min(std::max(updatedPosition.y, 0.f), static_cast<float>(height - (2 * radius)));
         particle.setPosition(boundedX, boundedY);
-
-        // Update velocity
-        // particleVelocity += GRAVITY * elapsed.asSeconds();
-        Vector2f acc = particleForces[i] / particleDensities[i];
-        particleVelocity += acc * elapsed.asSeconds();
     }
     updateQuadrants();
 }
@@ -137,7 +142,6 @@ void ParticleStore::visualizeQuadrants(sf::RenderWindow &window) {
 }
 
 float ParticleStore::calculateDensity(const Vector2f &point) {
-    const float mass = 1.f;
     float density = 0;
 
     unsigned int quadrant = _positionToQuadrant(point);
@@ -156,15 +160,17 @@ float ParticleStore::calculateDensity(const Vector2f &point) {
             //     particle.setFillColor(sf::Color(255, 0, 0));
             // }
 
-            const float influence = spikyKernel(smoothingRadius, dst);
-            density += mass * influence;
+            const float influence = spikyPow2Kernel(smoothingRadius, dst);
+            density += MASS * influence;
         }
     }
     return density;
 }
 
 float ParticleStore::calculatePressure(const float density) {
+    // std::cout << "density: " << density << std::endl;
     float densityError = density - TARGET_DENSITY;
+    // std::cout << "densityError: " << densityError << std::endl;
     float pressure = PRESSURE_MULTIPLIER * densityError;
     return pressure;
 }
@@ -198,21 +204,27 @@ void ParticleStore::calculateAllParticleDensities() {
     }
 }
 
-Vector2f ParticleStore::calculateDensityGradient(const Vector2f &point) {
+Vector2f ParticleStore::calculateParticleForce(int idx) {
     Vector2f gradient;
 
-    unsigned int quadrant = _positionToQuadrant(point);
+    Circle &particle = particles[idx];
+    const Vector2f center = particle.getCenter();
+    unsigned int quadrant = _positionToQuadrant(center);
     std::vector<unsigned int> neighboringQuadrants = _getNeighboringQuadrants(quadrant);
 
     for (int quadrant : neighboringQuadrants) {
         std::vector<unsigned int> &particleIdxs = quadrantToParticleIdxs[quadrant];
         for (int i : particleIdxs) {
-            float dst = Vector2f(point - particles[i].getCenter()).magnitude();
-            if (dst >= smoothingRadius || dst == 0) continue;
-            Vector2f dir = (particles[i].getCenter() - point) / dst;
-            float slope = spikyKernelDerivative(smoothingRadius, dst);
+            if (i == idx) continue;
+
+            float dst = Vector2f(center - particles[i].getCenter()).magnitude();
+
+            Vector2f dir = (dst != 0) ? (particles[i].getCenter() - center) / dst : randomUnitVector2f();
+            float slope = spikyPow2KernelDerivative(smoothingRadius, dst);
             float density = particleDensities[i];
-            gradient += -1 * calculatePressure(density) * dir * slope / density;
+
+            float sharedPressure = (calculatePressure(density) + calculatePressure(particleDensities[idx])) / 2.f;
+            gradient += calculatePressure(density) * dir * slope * 100.f / density;
         }
     }
     return gradient;
@@ -223,10 +235,10 @@ void ParticleStore::calculateParticleForces() {
 
     #pragma omp parallel for
     for (int i = 0; i < particles.size(); i++) {
-        Vector2f pressure = calculateDensityGradient(particles[i].getCenter());
+        Vector2f pressure = calculateParticleForce(i);
 
         // TODO: Fix this scaling issue
-        particleForces.push_back(pressure / particleDensities[i] / 50000.f);
+        particleForces.push_back(pressure);
         // particleForces.push_back(pressure.normalized() * 20.f);
     }
 }
@@ -246,14 +258,49 @@ void ParticleStore::visualizeParticleForces(sf::RenderWindow &window) {
 }
 
 void ParticleStore::visualizeDensity(sf::RenderWindow &window) {
-
     #pragma omp parallel for
     for (int i = 0; i < allDensities.size(); i++) {
         for (int j = 0; j < allDensities[0].size(); j++) {
             const float density = allDensities[i][j];
             sf::RectangleShape pixel(Vector2f(DENSITY_SCALE, DENSITY_SCALE));
             pixel.setPosition(Vector2f(i*DENSITY_SCALE, j*DENSITY_SCALE));
-            pixel.setFillColor(sf::Color(0, 0, 255, 255 * std::min(density * 5e2, 1.0)));
+            pixel.setFillColor(sf::Color(0, 0, 255, 255 * std::min(density / 2, 1.f)));
+            window.draw(pixel);
+        }
+    }
+}
+
+void ParticleStore::calculateAllPressures() {
+    int i, j;
+    float density;
+    
+    // Timer timer;
+
+    #pragma omp parallel for default(none) \
+                             private(i, j, density, pressure) shared(allPressures, DENSITY_SCALE)
+    for (i = 0; i < allPressures.size(); i++) {
+        for (j = 0; j < allPressures[0].size(); j++) {
+            const Vector2f point(i * DENSITY_SCALE, j * DENSITY_SCALE);
+            float density = calculateDensity(point);
+            float pressure = calculatePressure(density);
+            // std::cout << "pressure: " << pressure << std::endl;
+            allPressures[i][j] = pressure;
+        }
+    }
+}
+
+void ParticleStore::visualizePressure(sf::RenderWindow &window){
+    #pragma omp parallel for
+    for (int i = 0; i < allPressures.size(); i++) {
+        for (int j = 0; j < allPressures[0].size(); j++) {
+            const float pressure = allPressures[i][j];
+            // std::cout << "pressure: " << pressure << std::endl;
+            float r = (pressure > 0) ? 0 : 255 * std::min(-pressure * 2, 1.f);
+            float b = (pressure < 0) ? 0 : 255 * std::min(pressure * 2, 1.f);
+
+            sf::RectangleShape pixel(Vector2f(DENSITY_SCALE, DENSITY_SCALE));
+            pixel.setPosition(Vector2f(i*DENSITY_SCALE, j*DENSITY_SCALE));
+            pixel.setFillColor(sf::Color(r, 0, b, 255));
             window.draw(pixel);
         }
     }
