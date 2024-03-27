@@ -22,6 +22,8 @@ private:
 public:
     std::vector<Circle> particles;
     std::vector<Vector2f> particleVelocities;
+    std::vector<float> particleDensities;
+    std::vector<Vector2f> particleForces;
 
     std::vector<std::vector<float>> allDensities;
 
@@ -36,15 +38,21 @@ public:
     void spawnParticles(const int rows, const int cols, const float radius, const Vector2f &center, const float spacing = 0.f);
     void spawnRandomParticles(const int numParticles, const float radius, const sf::Vector2u bounds);
 
-    void applyGravity(Circle &particle, Vector2f &particleVelocity, sf::Time &elapsed);
+    void applyForces(sf::Time &elapsed);
 
     void setSmoothingRadius(const float newSmoothingRadius);
     void updateQuadrants();
     void visualizeQuadrants(sf::RenderWindow &window);
 
     float calculateDensity(const Vector2f &point);
+    float calculatePressure(const float density);
     void calculateAllDensities();
+    void calculateAllParticleDensities();
+    void visualizeDensity(sf::RenderWindow &window);
+
+    Vector2f calculateDensityGradient(const Vector2f &point);
+    void calculateParticleForces();
+    void visualizeParticleForces(sf::RenderWindow &window);
 
     void drawParticles(sf::RenderWindow &window);
-    void updateGravity(sf::Time &elapsed);
 };

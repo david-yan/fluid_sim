@@ -11,24 +11,8 @@
 #include "particles.hpp"
 
 float minSmoothingRadius(1.0);
-float smoothingRadius(50.0);
+float smoothingRadius(100.0);
 
-
-void visualizeDensity(sf::RenderWindow &window, ParticleStore &particles) {
-    sf::Vector2u bounds = window.getSize();
-    unsigned int width = bounds.x;
-    unsigned int height = bounds.y;
-
-    for (int i = 0; i < particles.allDensities.size(); i++) {
-        for (int j = 0; j < particles.allDensities[0].size(); j++) {
-            const float density = particles.allDensities[i][j];
-            sf::RectangleShape pixel(Vector2f(DENSITY_SCALE, DENSITY_SCALE));
-            pixel.setPosition(Vector2f(i*DENSITY_SCALE, j*DENSITY_SCALE));
-            pixel.setFillColor(sf::Color(0, 0, 255, 255 * std::min(density * 5e2, 1.0)));
-            window.draw(pixel);
-        }
-    }
-}
 
 int main()
 {
@@ -36,7 +20,7 @@ int main()
     settings.antialiasingLevel = 8;
 
     auto window = sf::RenderWindow{ { 1280u, 720u }, "Fluid Sim Project" , sf::Style::Default, settings};
-    window.setFramerateLimit(60);
+    window.setFramerateLimit(30);
 
     // get the size of the window
     sf::Vector2u bounds = window.getSize();
@@ -48,7 +32,7 @@ int main()
     float radius = 2.0;
 
     // particles.spawnParticles(50, 50, radius, Vector2f(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f), 2);
-    particles.spawnRandomParticles(1000, radius, bounds);
+    particles.spawnRandomParticles(500, radius, bounds);
 
     sf::Clock clock;
     Vector2f center(static_cast<float>(width)/2.f, static_cast<float>(height)/2.f);
@@ -58,7 +42,7 @@ int main()
     densityCircle.setOutlineThickness(1.0);
 
     float density = particles.calculateDensity(center);
-    std::cout << "density: " << density << std::endl;
+    // std::cout << "density: " << density << std::endl;
 
     bool leftMousePressed = false;
     bool rightMousePressed = false;
@@ -131,6 +115,8 @@ int main()
                     std::cout << smoothingRadius << std::endl;
                     densityCircle.setRadius(smoothingRadius);
                     densityCircle.setPosition(center - Vector2f(smoothingRadius, smoothingRadius));
+
+                    particles.setSmoothingRadius(smoothingRadius);
                 }
 
                 prevMouse.x = event.mouseMove.x;
@@ -145,16 +131,19 @@ int main()
         }
 
         window.clear();
+        // window.draw(densityCircle);
 
-        visualizeDensity(window, particles);
-
-        window.draw(densityCircle);
-
-        // sf::Time elapsed = clock.restart();
-        // particles.applyGravity(elapsed);
+        sf::Time elapsed = clock.restart();
+        particles.applyForces(elapsed);
 
         particles.calculateAllDensities();
-        particles.visualizeQuadrants(window);
+        particles.calculateAllParticleDensities();
+        particles.calculateParticleForces();
+
+        particles.visualizeDensity(window);
+        // particles.visualizeParticleForces(window);
+
+        // particles.visualizeQuadrants(window);
         particles.drawParticles(window);
         
         window.display();
